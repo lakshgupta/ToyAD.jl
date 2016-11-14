@@ -11,7 +11,6 @@ function backprop(graph::AD, setGradToOne::Bool)
     for i=1:numParents
       push!(bfs, current.parents[i])
     end
-    #current = pop!(bfs)
   end
   return graph
 end

@@ -9,7 +9,8 @@ type ADNodesMetadata
   metadata::ADMetadata
   group::Int64
 
-  ADNodesMetadata(node::AD) = new(string(pointer(node.value)), node.name, ADMetadata(size(node.value), node.opNode, size(node.grad)), node.opNode?1:2)
+  ADNodesMetadata(node::AD, id::String) = new(id, node.name, ADMetadata(size(node.value), node.opNode, size(node.grad)), node.opNode?1:0)
+  ADNodesMetadata(node::AD, id::String, grp::Int64) = new(id, node.name, ADMetadata(size(node.value), node.opNode, size(node.grad)), grp)
 end
 type ADLinksMetadata
   source::String
@@ -24,13 +25,18 @@ end
 # traverse the graph top-down
 # convert AD to ADMetadata
 function getGraphMetadata(graph::AD)
+  uniqueNodes = Dict()
   nodes = Array(ADNodesMetadata,0)
   links = Array(ADLinksMetadata,0)
 
   bfs = [graph]
   while length(bfs) != 0
     current = pop!(bfs)
-    push!(nodes, ADNodesMetadata(current))
+    currentId = string(pointer(current.value))
+    if !haskey(uniqueNodes, currentId)
+      push!(nodes, ADNodesMetadata(current, currentId))
+      uniqueNodes[currentId] = true
+    end
     currentPtr = string(pointer(current.value))
     numParents = length(current.parents)
     for i=1:numParents
@@ -54,10 +60,14 @@ function d3ForcedDirectedGraphHTML(data::D3Data, supportsHTML::Bool)
           stroke-opacity: 0.6;
         }
 
-        .node text {
+        .nodes text {
           pointer-events: none;
           font: 10px sans-serif;
         }
+
+        text{
+		      visibility: visible;
+	      }
 
         .nodes circle {
           stroke: #fff;
@@ -114,7 +124,8 @@ function d3ForcedDirectedGraphHTML(data::D3Data, supportsHTML::Bool)
                     .attr("class", "nodes")
                     .selectAll("circle")
                     .data(graph.nodes)
-                    .enter().append("circle")
+                    .enter()
+                    .append("circle")
                     .attr("r", 5)
                     .attr("fill", function(d) { return color(d.group); })
                     .call(d3.drag()
@@ -137,6 +148,22 @@ function d3ForcedDirectedGraphHTML(data::D3Data, supportsHTML::Bool)
       simulation.force("link")
         .links(graph.links);
 
+      setTimeout(textDisplay, 500);
+
+  	  function textDisplay(){
+  		    svg.append("g")
+  		      .selectAll("text")
+  		      .data(d3.selectAll("circle")._groups[0])
+            .enter()
+  		      .append("text")
+  		      .attr("x", function(d,i){ return d.cx.animVal.value+5;})
+  		      .attr("y", function(d,i){ return d.cy.animVal.value-5;})
+  		      .text(function(d) { return d.__data__.name })
+  		      .attr("style","")
+  		      .attr("font-family", "sans-serif")
+  		      .attr("font-size", "15px");
+  	  }
+
       function ticked() {
         link
           .attr("x1", function(d) { return d.source.x; })
@@ -152,17 +179,23 @@ function d3ForcedDirectedGraphHTML(data::D3Data, supportsHTML::Bool)
         if (!d3.event.active) simulation.alphaTarget(0.3).restart();
         d.fx = d.x;
         d.fy = d.y;
+        svg.selectAll("text").remove()
+	      textDisplay();
       }
 
       function dragged(d) {
         d.fx = d3.event.x;
         d.fy = d3.event.y;
+        svg.selectAll("text").remove()
+	      textDisplay();
       }
 
       function dragended(d) {
         if (!d3.event.active) simulation.alphaTarget(0);
         d.fx = null;
         d.fy = null;
+        svg.selectAll("text").remove()
+	      textDisplay();
       }
     """
 
@@ -184,21 +217,7 @@ end
 # D3 operations on graph metadata
 function getD3GraphMetadataHTML(graph::AD, supportsHTML::Bool)
   d3Data = getGraphMetadata(graph)
-  println(json(d3Data))
   d3HTML = d3ForcedDirectedGraphHTML(d3Data, supportsHTML)
-
-  #=
-  displayid = "AutoDiff-iframe-" * string(rand())
-  height = 500
-  graphHTML =
-    """
-      <!DOCTYPE html>
-      <body>
-        <iframe id="$(displayid)" style="height:$(height)px;width=100%" src="data:text/html;charset=utf-8,$(d3HTML)"/>
-      </body>
-    """
-  =#
-
   return d3HTML
 end
 

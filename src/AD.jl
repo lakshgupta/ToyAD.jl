@@ -1,3 +1,4 @@
+# PS: Julia data structures are columnar
 # type to operate on
 type AD
   name::String
@@ -18,5 +19,3 @@ end
 function ad_constD(prevGrad::Matrix{Float64}, adNodes::Array{AD})
   return zeros(1,1)
 end
-
-# PS: Julia data structures are columnar

@@ -1,6 +1,6 @@
 module ToyAD
   using Blink, JSON
-  import Base.+, Base.*, Base.(.*), Base.show
+  import Base.+, Base.(.+), Base.*, Base.(.*), Base.show
 
   # Automatic Differentiation
   include("Utils.jl")
@@ -16,9 +16,9 @@ module ToyAD
   export plot
 
   # operations on AD type
-  export +,*, .*, relu, sigmoid, tanh, softmax
+  export +, .+, *, .*, relu, sigmoid, tanh, softmax
 
   # Backprop
   export backprop
-  
+
 end # module
