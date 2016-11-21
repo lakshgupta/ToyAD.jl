@@ -16,9 +16,9 @@ module ToyAD
   export plot
 
   # operations on AD type
-  export +, .+, *, .*, relu, sigmoid, tanh, softmax
+  export +, .+, *, .*, relu, sigmoid, tanh, softmaxLoss
 
   # Backprop
-  export backprop
+  export backprop, resetGrad
 
 end # module

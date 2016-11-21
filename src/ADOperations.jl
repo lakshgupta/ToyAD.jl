@@ -14,25 +14,25 @@ function ad_add(x::AD, y::AD)
   push!(result.parents, y)
   return result
 end
-function ad_addD(prevGrad::Matrix{Float64}, adNodes::Array{AD, 1})
-  prevGradSize = size(prevGrad)
-  adNode1Size = size(adNodes[1].value)
-  adNode2Size = size(adNodes[2].value)
+function ad_addD(this::AD)
+  prevGradSize = size(this.grad)
+  adNode1Size = size(this.parents[1].value)
+  adNode2Size = size(this.parents[2].value)
 
   if adNode1Size == prevGradSize
-    adNodes[1].grad += 1 * prevGrad
+    this.parents[1].grad += 1 * this.grad
   elseif adNode1Size[1] == prevGradSize[1]
-    adNodes[1].grad += 1 * sum(prevGrad,2)
+    this.parents[1].grad += 1 * sum(this.grad,2)
   else
-    adNodes[1].grad += 1 * sum(prevGrad,1)
+    this.parents[1].grad += 1 * sum(this.grad,1)
   end
 
   if adNode2Size == prevGradSize
-    adNodes[2].grad += 1 * prevGrad
+    this.parents[2].grad += 1 * this.grad
   elseif adNode2Size[1] == prevGradSize[1]
-    adNodes[2].grad += 1 * sum(prevGrad,2)
+    this.parents[2].grad += 1 * sum(this.grad,2)
   else
-    adNodes[2].grad += 1 * sum(prevGrad,1)
+    this.parents[2].grad += 1 * sum(this.grad,1)
   end
   return
 end
@@ -45,26 +45,27 @@ function ad_eladd(x::AD, y::AD)
   push!(result.parents, y)
   return result
 end
-function ad_eladdD(prevGrad::Matrix{Float64}, adNodes::Array{AD, 1})
-  prevGradSize = size(prevGrad)
-  adNode1Size = size(adNodes[1].value)
-  adNode2Size = size(adNodes[2].value)
+function ad_eladdD(this::AD)
+  prevGradSize = size(this.grad)
+  adNode1Size = size(this.parents[1].value)
+  adNode2Size = size(this.parents[2].value)
 
   if adNode1Size == prevGradSize
-    adNodes[1].grad += 1 * prevGrad
+    this.parents[1].grad += 1 * this.grad
   elseif adNode1Size[1] == prevGradSize[1]
-    adNodes[1].grad += 1 * sum(prevGrad,2)
+    this.parents[1].grad += 1 * sum(this.grad,2)
   else
-    adNodes[1].grad += 1 * sum(prevGrad,1)
+    this.parents[1].grad += 1 * sum(this.grad,1)
   end
 
   if adNode2Size == prevGradSize
-    adNodes[2].grad += 1 * prevGrad
+    this.parents[2].grad += 1 * this.grad
   elseif adNode2Size[1] == prevGradSize[1]
-    adNodes[2].grad += 1 * sum(prevGrad,2)
+    this.parents[2].grad += 1 * sum(this.grad,2)
   else
-    adNodes[2].grad += 1 * sum(prevGrad,1)
+    this.parents[2].grad += 1 * sum(this.grad,1)
   end
+
   return
 end
 .+(x::AD, y::AD) = ad_eladd(x, y)
@@ -81,15 +82,15 @@ function ad_mul(x::AD, y::AD)
     return result
   end
 end
-function ad_mulD(prevGrad::Matrix{Float64}, adNodes::Array{AD,1})
-  rowNode1, colNode1 = size(adNodes[1].value)
-  rowNode2, colNode2 = size(adNodes[2].value)
+function ad_mulD(this::AD)
+  rowNode1, colNode1 = size(this.parents[1].value)
+  rowNode2, colNode2 = size(this.parents[2].value)
 
   for i = 1:rowNode1, j = 1:colNode2
-    pd = prevGrad[i,j]
+    pd = this.grad[i,j]
     for k = 1:colNode1
-      adNodes[1].grad[i,k] += adNodes[2].value[k,j] * pd
-      adNodes[2].grad[k,j] += adNodes[1].value[i,k] * pd
+      this.parents[1].grad[i,k] += this.parents[2].value[k,j] * pd
+      this.parents[2].grad[k,j] += this.parents[1].value[i,k] * pd
     end
   end
 end
@@ -103,9 +104,9 @@ function ad_elmul(x::AD, y::AD)
   push!(result.parents, y)
   return result
 end
-function ad_elmulD(prevGrad::Matrix{Float64}, adNodes::Array{AD,1})
-  adNodes[1].grad += adNodes[2].value .* prevGrad
-  adNodes[2].grad += adNodes[1].value .* prevGrad
+function ad_elmulD(this::AD)
+  this.parents[1].grad += this.parents[2].value .* this.grad
+  this.parents[2].grad += this.parents[1].value .* this.grad
   return
 end
 .*(x::AD, y::AD) = ad_elmul(x, y)
@@ -124,8 +125,8 @@ function reluGradientMat(z::Matrix{Float64})
     grad[z.<=0] = 0;
     return grad;
 end
-function ad_reluD(prevGrad::Matrix{Float64}, adNodes::Array{AD,1})
-  adNodes[1].grad += reluGradientMat(adNodes[1].value) .* prevGrad
+function ad_reluD(this::AD)
+  this.parents[1].grad += reluGradientMat(this.parents[1].value) .* this.grad
   return
 end
 
@@ -142,8 +143,8 @@ end
 function sigmoidGradientMat(z::Matrix{Float64})
   return z.*(1.0 - z);
 end
-function ad_sigmoidD(prevGrad::Matrix{Float64}, adNodes::Array{AD,1})
-  adNodes[1].grad += sigmoidGradientMat(adNodes[1].value) .* prevGrad
+function ad_sigmoidD(this::AD)
+  this.parents[1].grad += sigmoidGradientMat(this.parents[1].value) .* this.grad
   return
 end
 
@@ -156,8 +157,8 @@ end
 function tanhGradientMat(z::Matrix{Float64})
   return (1.0 - z^2)
 end
-function ad_tanhD(prevGrad::Matrix{Float64}, adNodes::Array{AD,1})
-  adNodes[1].grad += tanhGradientMat(adNodes[1].value) .* prevGrad
+function ad_tanhD(this::AD)
+  this.parents[1].grad += tanhGradientMat(this.parents[1].value) .* this.grad
   return
 end
 
@@ -168,27 +169,44 @@ function softmaxMat(z::Matrix{Float64}, dimOrder::Int64)
     return g;
 end
 
-function softmaxLoss(y::Matrix{Float64}, x::AD, dimOrder::Int64, reg::Float64)
+# Using cross-entropy loss function.
+# evaluating d(loss)/d(loss)*d(loss)/d(softmax)*d(softmax)/d(z)
+# because calculating d(softmax)/d(z) individually requires too much memory.
+function softmaxLoss(y::Matrix{Float64}, x::AD, dimOrder::Int64, computeLoss::Bool, reg::Float64)
    # dimOrder: along which the dimentions/classes are present
    probs = softmaxMat(x.value, dimOrder)
    # compute the loss: average cross-entropy loss and regularization
-    instanceOrder = (dimOrder == 1? 2 : 1)
-    numInstance = size(y, instanceOrder)
-   correctProbs = zeros(size(y))
-   for j in 1:numInstance
-     correctProbs[j, :] = -log(probs[j,Int64(y[j, :])]);
+   loss = 0.0
+   if computeLoss
+     dataInstanceOrder = (dimOrder == 1? 2 : 1)
+     numInstance = size(y, dataInstanceOrder)
+     correctLogProbs = zeros(size(y))
+     for j in 1:numInstance
+       correctLogProbs[j, :] = -log(probs[j,Int64(dataInstanceOrder==1?y[j, 1]:y[1,j])]);
+     end
+     loss = sum(correctLogProbs)/numInstance + reg
    end
-   data_loss = sum(correctProbs)/numInstance
-   #reg_loss = 0.5*reg*sum(W1.value .^2) + 0.5*reg*sum(W2.value .^2)
-   loss = data_loss + reg
-
+   
    # return node
-   result = AD("softmaxLoss", probs, true, zeros(size(x.value)), ad_softmaxD, x.level + 1)
+   result = AD("softmaxLoss", probs, true, zeros(size(x.value)), ad_softmaxLossD, x.level + 1, y, dataInstanceOrder, loss)
    push!(result.parents, x)
-   return (result, loss)
+   return result
 end
 
-function ad_softmaxD(prevGrad::Matrix{Float64}, adNodes::Array{AD,1})
-  adNodes[1].grad += adNodes[1].value .* prevGrad
+softmaxLoss(y::Matrix{Float64}, x::AD, dimOrder::Int64, computeLoss::Bool) = softmaxLoss(y, x, dimOrder, computeLoss, 0.0)
+softmaxLoss(y::Matrix{Float64}, x::AD, dimOrder::Int64) = softmaxLoss(y, x, dimOrder, false, 0.0)
+
+function ad_softmaxLossD(this::AD)
+  this.parents[1].grad += this.value .* this.grad
+  if this.outputOrder == 1
+    for j in 1:size(this.parents[1].grad, this.outputOrder)
+      this.parents[1].grad[j,Int64(this.output[j,1])] -= 1;
+    end
+  elseif this.outputOrder == 2
+    for j in 1:size(this.parents[1].grad, this.outputOrder)
+      this.parents[1].grad[Int64(this.output[1,j]), j] -= 1;
+    end
+  end
+  this.parents[1].grad /= size(this.output, this.outputOrder);
   return
 end
